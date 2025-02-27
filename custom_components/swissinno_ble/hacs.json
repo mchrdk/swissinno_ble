@@ -1,0 +1,10 @@
+{
+  "name": "SWISSINNO BLE",
+  "domain": "swissinno_ble",
+  "homeassistant": "2025.1.1",
+  "country": "SE",
+  "iot_class": "Local Polling",
+  "render_readme": true,
+  "filename": "custom_components/swissinno_ble",
+  "zip_release": false
+}

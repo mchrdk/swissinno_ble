@@ -1,0 +1,11 @@
+{
+  "domain": "swissinno_ble",
+  "name": "SWISSINNO BLE Trap Sensors",
+  "version": "1.0.0",
+  "documentation": "https://github.com/unigas/swissinno_ble",
+  "dependencies": ["bluetooth"],
+  "requirements": ["bleak"],
+  "codeowners": ["@unigas"],
+  "iot_class": "local_polling",
+  "config_flow": false
+}

@@ -1,0 +1,1 @@
+DOMAIN = "swissinno_ble"
