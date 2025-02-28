@@ -23,8 +23,26 @@ A **custom Home Assistant integration** for **SWISSINNO Bluetooth traps**, allow
 3. Restart Home Assistant.
 4. Go to **Settings → Devices & Services** and add "SWISSINNO BLE."
 
-### 2️⃣ **HACS Installation (Coming Soon)**
-*(Once HACS support is added, update this section!)*  
+### 2️⃣ **HACS Installation**
+To install this integration via **HACS (Home Assistant Community Store)**, follow these steps:
+
+1. Open **HACS** in Home Assistant  
+2. Navigate to **Integrations**  
+3. Click **"➕" (Add Custom Repository)**  
+4. Enter the following URL:  
+   ```
+   https://github.com/unigas/swissinno_ble
+   ```
+5. Select **"Integration"** as the category  
+6. Click **"Add"**  
+7. Go to **HACS → Integrations**, find **SWISSINNO BLE**, and install it  
+8. Restart Home Assistant  
+9. Go to **Settings → Devices & Services → Add Integration**  
+10. Search for **SWISSINNO BLE** and click **Install**  
+
+---
+
+🔹 **After installation, the integration will automatically detect nearby SWISSINNO traps.**  
 
 ---
 
