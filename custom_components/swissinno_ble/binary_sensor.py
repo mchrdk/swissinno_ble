@@ -36,9 +36,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
             if len(data) >= 9:
                 trap_id = f"{data[2]:02X}{data[3]:02X}{data[4]:02X}{data[5]:02X}"
                 tripped = data[0] == 0x01
-                battery_mv = int.from_bytes(data[7:9], byteorder="little")
 
-                _LOGGER.info(f"SWISSINNO BLE: Updating trap {trap_id}, Tripped: {tripped}, RSSI: {rssi} dBm, Battery: {battery_mv} mV")
+                # ✅ Extract battery voltage from byte 8 (after manufacturer ID)
+                battery_raw = data[7]  
+                battery_v = round((battery_raw * 3.6) / 255, 2)  # Correct voltage conversion
+
+                _LOGGER.info(f"SWISSINNO BLE: Updating trap {trap_id}, Tripped: {tripped}, RSSI: {rssi} dBm, Battery: {battery_v} V")
 
                 if trap_id in sensors:
                     sensors[trap_id].update_state(tripped)
@@ -49,7 +52,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
                     async_add_entities([trap_sensor], update_before_add=True)
 
                 if "update_sensors" in hass.data.get(DOMAIN, {}):
-                    hass.async_create_task(hass.data[DOMAIN]["update_sensors"](trap_id, service_info.address, rssi, battery_mv))
+                    hass.async_create_task(hass.data[DOMAIN]["update_sensors"](trap_id, service_info.address, rssi, battery_v))
                 else:
                     _LOGGER.warning(f"SWISSINNO BLE: `update_sensors` not found, retrying in 5 seconds.")
 
@@ -57,7 +60,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
                         await asyncio.sleep(5)
                         if "update_sensors" in hass.data.get(DOMAIN, {}):
                             _LOGGER.info(f"SWISSINNO BLE: Retrying sensor updates for {trap_id}")
-                            hass.async_create_task(hass.data[DOMAIN]["update_sensors"](trap_id, service_info.address, rssi, battery_mv))
+                            hass.async_create_task(hass.data[DOMAIN]["update_sensors"](trap_id, service_info.address, rssi, battery_v))
                         else:
                             _LOGGER.error(f"SWISSINNO BLE: `update_sensors` still missing after retry.")
 
@@ -76,7 +79,7 @@ class SwissinnoTrapSensor(BinarySensorEntity):
         self._attr_name = f"SWISSINNO Trap {trap_id}"
         self._attr_unique_id = f"swissinno_trap_{trap_id}"
         self._attr_device_class = "motion"
-        self._attr_icon = "mdi:rodent"  # ✅ Updated icon
+        self._attr_icon = "mdi:rodent"  # ✅ Updated to use `mdi:rodent`
         self._state = is_tripped
         self._last_seen = datetime.utcnow()
         self._attr_should_poll = False  # No polling needed for BLE

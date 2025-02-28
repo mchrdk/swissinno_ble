@@ -7,7 +7,7 @@ from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
-LAST_SEEN_TIMEOUT = timedelta(minutes=10)  # Make sensor unavailable if unseen for 10 minutes
+LAST_SEEN_TIMEOUT = timedelta(minutes=10)  # Sensor unavailable if unseen for 10 minutes
 sensors = {}  # Store sensor instances globally
 
 async def async_setup_entry(hass, entry, async_add_entities):
@@ -18,12 +18,9 @@ async def async_setup_entry(hass, entry, async_add_entities):
         _LOGGER.warning(f"SWISSINNO BLE: {DOMAIN} not found in hass.data, initializing now.")
         hass.data[DOMAIN] = {}
 
-    async def add_or_update_sensors(trap_id, address, rssi, battery_mv):
+    async def add_or_update_sensors(trap_id, address, rssi, battery_v):
         """Function to create or update RSSI and Battery sensors."""
-        _LOGGER.info(f"SWISSINNO BLE: Updating sensors for {trap_id} - RSSI: {rssi} dBm, Battery: {battery_mv} mV")
-
-        # Convert battery mV to volts
-        battery_v = round((battery_mv / 1000.0) * 6.3, 2)  # Round to 2 decimals and apply scale factor
+        _LOGGER.info(f"SWISSINNO BLE: Updating sensors for {trap_id} - RSSI: {rssi} dBm, Battery: {battery_v} V")
 
         if trap_id in sensors:
             _LOGGER.info(f"SWISSINNO BLE: Updating existing sensors for {trap_id}")
@@ -49,7 +46,7 @@ class SwissinnoRssiSensor(SensorEntity):
         self._attr_native_unit_of_measurement = SIGNAL_STRENGTH_DECIBELS_MILLIWATT
         self._attr_state_class = "measurement"
         self._attr_device_class = "signal_strength"
-        self._rssi = rssi
+        self._rssi = round(rssi, 2)  # ✅ Round to 2 decimals
         self._last_seen = datetime.utcnow()
         self._attr_should_poll = False
         self._attr_device_info = DeviceInfo(
@@ -65,8 +62,8 @@ class SwissinnoRssiSensor(SensorEntity):
         return self._rssi
 
     def update_rssi(self, rssi):
-        """Update RSSI value."""
-        self._rssi = rssi
+        """Update RSSI value (rounded to 2 decimals)."""
+        self._rssi = round(rssi, 2)
         self.async_write_ha_state()
 
 class SwissinnoBatterySensor(SensorEntity):
@@ -78,7 +75,7 @@ class SwissinnoBatterySensor(SensorEntity):
         self._attr_native_unit_of_measurement = UnitOfElectricPotential.VOLT
         self._attr_state_class = "measurement"
         self._attr_device_class = "voltage"
-        self._battery_v = battery_v
+        self._battery_v = round(battery_v, 2)  # ✅ Round to 2 decimals
         self._last_seen = datetime.utcnow()
         self._attr_should_poll = False
         self._attr_device_info = DeviceInfo(
@@ -94,6 +91,6 @@ class SwissinnoBatterySensor(SensorEntity):
         return self._battery_v
 
     def update_battery(self, battery_v):
-        """Update battery voltage."""
-        self._battery_v = battery_v
+        """Update battery voltage (rounded to 2 decimals)."""
+        self._battery_v = round(battery_v, 2)
         self.async_write_ha_state()
