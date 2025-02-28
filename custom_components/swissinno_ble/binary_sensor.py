@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from homeassistant.components.bluetooth import (
     BluetoothServiceInfoBleak,
@@ -30,13 +31,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
         manufacturer_data = service_info.manufacturer_data
         if MANUFACTURER_ID in manufacturer_data:
             data = manufacturer_data[MANUFACTURER_ID]
-            _LOGGER.info(f"SWISSINNO BLE: Found SWISSINNO trap {service_info.address}, Raw Data: {data}")
+            rssi = service_info.rssi
 
-            if len(data) >= 7 and data[6] == 0x01:  # Ensure it's a Connect device
+            if len(data) >= 9:
                 trap_id = f"{data[2]:02X}{data[3]:02X}{data[4]:02X}{data[5]:02X}"
                 tripped = data[0] == 0x01
+                battery_mv = int.from_bytes(data[7:9], byteorder="little")
 
-                _LOGGER.info(f"SWISSINNO BLE: Updating trap {trap_id}, Tripped: {tripped}")
+                _LOGGER.info(f"SWISSINNO BLE: Updating trap {trap_id}, Tripped: {tripped}, RSSI: {rssi} dBm, Battery: {battery_mv} mV")
 
                 if trap_id in sensors:
                     sensors[trap_id].update_state(tripped)
@@ -44,14 +46,24 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
                     _LOGGER.info(f"SWISSINNO BLE: Creating new binary sensor for {trap_id}")
                     trap_sensor = SwissinnoTrapSensor(service_info.address, trap_id, tripped)
                     sensors[trap_id] = trap_sensor
-                    hass.async_create_task(async_add_entities([trap_sensor], update_before_add=True))
+                    async_add_entities([trap_sensor], update_before_add=True)
 
-    # Register Bluetooth callback
-    cancel_callback = async_register_callback(
-        hass, detection_callback, {}, BluetoothScanningMode.PASSIVE
-    )
+                if "update_sensors" in hass.data.get(DOMAIN, {}):
+                    hass.async_create_task(hass.data[DOMAIN]["update_sensors"](trap_id, service_info.address, rssi, battery_mv))
+                else:
+                    _LOGGER.warning(f"SWISSINNO BLE: `update_sensors` not found, retrying in 5 seconds.")
 
-    # Unregister callback when HA stops
+                    async def retry_update():
+                        await asyncio.sleep(5)
+                        if "update_sensors" in hass.data.get(DOMAIN, {}):
+                            _LOGGER.info(f"SWISSINNO BLE: Retrying sensor updates for {trap_id}")
+                            hass.async_create_task(hass.data[DOMAIN]["update_sensors"](trap_id, service_info.address, rssi, battery_mv))
+                        else:
+                            _LOGGER.error(f"SWISSINNO BLE: `update_sensors` still missing after retry.")
+
+                    hass.async_create_task(retry_update())
+
+    cancel_callback = async_register_callback(hass, detection_callback, {}, BluetoothScanningMode.PASSIVE)
     hass.bus.async_listen_once("homeassistant_stop", cancel_callback)
 
     _LOGGER.info("SWISSINNO BLE: Bluetooth scanner callback registered successfully!")
@@ -64,6 +76,7 @@ class SwissinnoTrapSensor(BinarySensorEntity):
         self._attr_name = f"SWISSINNO Trap {trap_id}"
         self._attr_unique_id = f"swissinno_trap_{trap_id}"
         self._attr_device_class = "motion"
+        self._attr_icon = "mdi:rodent"  # ✅ Updated icon
         self._state = is_tripped
         self._last_seen = datetime.utcnow()
         self._attr_should_poll = False  # No polling needed for BLE

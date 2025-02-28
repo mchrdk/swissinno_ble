@@ -1,6 +1,6 @@
 import logging
 from homeassistant.components.sensor import SensorEntity
-from homeassistant.const import SIGNAL_STRENGTH_DECIBELS_MILLIWATT
+from homeassistant.const import SIGNAL_STRENGTH_DECIBELS_MILLIWATT, UnitOfElectricPotential
 from homeassistant.helpers.entity import DeviceInfo
 from datetime import datetime, timedelta
 from .const import DOMAIN
@@ -8,12 +8,42 @@ from .const import DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 LAST_SEEN_TIMEOUT = timedelta(minutes=10)  # Make sensor unavailable if unseen for 10 minutes
+sensors = {}  # Store sensor instances globally
+
+async def async_setup_entry(hass, entry, async_add_entities):
+    """Set up SWISSINNO BLE sensors (RSSI & Battery Voltage)."""
+    _LOGGER.info("SWISSINNO BLE: Setting up RSSI and Battery sensors.")
+
+    if DOMAIN not in hass.data:
+        _LOGGER.warning(f"SWISSINNO BLE: {DOMAIN} not found in hass.data, initializing now.")
+        hass.data[DOMAIN] = {}
+
+    async def add_or_update_sensors(trap_id, address, rssi, battery_mv):
+        """Function to create or update RSSI and Battery sensors."""
+        _LOGGER.info(f"SWISSINNO BLE: Updating sensors for {trap_id} - RSSI: {rssi} dBm, Battery: {battery_mv} mV")
+
+        # Convert battery mV to volts
+        battery_v = round((battery_mv / 1000.0) * 6.3, 2)  # Round to 2 decimals and apply scale factor
+
+        if trap_id in sensors:
+            _LOGGER.info(f"SWISSINNO BLE: Updating existing sensors for {trap_id}")
+            sensors[trap_id]["rssi"].update_rssi(rssi)
+            sensors[trap_id]["battery"].update_battery(battery_v)
+        else:
+            _LOGGER.info(f"SWISSINNO BLE: Creating new sensors for {trap_id}")
+            rssi_sensor = SwissinnoRssiSensor(address, trap_id, rssi)
+            battery_sensor = SwissinnoBatterySensor(address, trap_id, battery_v)
+
+            sensors[trap_id] = {"rssi": rssi_sensor, "battery": battery_sensor}
+            hass.async_create_task(async_add_entities([rssi_sensor, battery_sensor], update_before_add=True))
+
+    hass.data[DOMAIN]["update_sensors"] = add_or_update_sensors
+    _LOGGER.info("SWISSINNO BLE: `update_sensors` function registered successfully.")
 
 class SwissinnoRssiSensor(SensorEntity):
     """Representation of a SWISSINNO RSSI Sensor."""
 
     def __init__(self, address, trap_id, rssi):
-        _LOGGER.info(f"SWISSINNO BLE: Creating RSSI sensor for trap {trap_id}")
         self._attr_name = f"SWISSINNO Trap RSSI {trap_id}"
         self._attr_unique_id = f"swissinno_rssi_{trap_id}"
         self._attr_native_unit_of_measurement = SIGNAL_STRENGTH_DECIBELS_MILLIWATT
@@ -21,7 +51,7 @@ class SwissinnoRssiSensor(SensorEntity):
         self._attr_device_class = "signal_strength"
         self._rssi = rssi
         self._last_seen = datetime.utcnow()
-        self._attr_should_poll = False  # No polling needed for BLE
+        self._attr_should_poll = False
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, address)},
             name=f"SWISSINNO Trap {trap_id}",
@@ -29,23 +59,41 @@ class SwissinnoRssiSensor(SensorEntity):
             model="BLE Trap Sensor"
         )
 
-    async def async_added_to_hass(self):
-        """Ensure the entity is properly registered in Home Assistant."""
-        _LOGGER.info(f"SWISSINNO BLE: Successfully added RSSI sensor {self._attr_unique_id} to HA.")
-
     @property
     def native_value(self):
         """Return the RSSI value."""
         return self._rssi
 
-    @property
-    def available(self):
-        """Make the sensor unavailable if not detected for a certain time."""
-        return datetime.utcnow() - self._last_seen < LAST_SEEN_TIMEOUT
-
-    def update_state(self, rssi):
-        """Update RSSI value and refresh last seen timestamp."""
-        _LOGGER.info(f"SWISSINNO BLE: Updating RSSI for {self._attr_unique_id} - RSSI: {rssi}")
+    def update_rssi(self, rssi):
+        """Update RSSI value."""
         self._rssi = rssi
+        self.async_write_ha_state()
+
+class SwissinnoBatterySensor(SensorEntity):
+    """Representation of a SWISSINNO Battery Voltage Sensor."""
+
+    def __init__(self, address, trap_id, battery_v):
+        self._attr_name = f"SWISSINNO Trap Battery {trap_id}"
+        self._attr_unique_id = f"swissinno_battery_{trap_id}"
+        self._attr_native_unit_of_measurement = UnitOfElectricPotential.VOLT
+        self._attr_state_class = "measurement"
+        self._attr_device_class = "voltage"
+        self._battery_v = battery_v
         self._last_seen = datetime.utcnow()
+        self._attr_should_poll = False
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, address)},
+            name=f"SWISSINNO Trap {trap_id}",
+            manufacturer="SWISSINNO",
+            model="BLE Trap Sensor"
+        )
+
+    @property
+    def native_value(self):
+        """Return the battery voltage."""
+        return self._battery_v
+
+    def update_battery(self, battery_v):
+        """Update battery voltage."""
+        self._battery_v = battery_v
         self.async_write_ha_state()
