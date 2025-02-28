@@ -1,12 +1,14 @@
 {
+  "title": "SWISSINNO BLE Trap Sensors",
   "config": {
-    "title": "SWISSINNO BLE",
-    "description": "Monitor SWISSINNO Bluetooth traps in Home Assistant."
-  },
-  "options": {
-    "refresh_interval": {
-      "name": "Refresh Interval",
-      "description": "How often to scan for BLE devices (in seconds)."
+    "step": {
+      "user": {
+        "title": "SWISSINNO BLE Setup",
+        "description": "Automatically detects SWISSINNO Bluetooth traps.",
+        "data": {
+          "scan_interval": "Scan Interval (seconds)"
+        }
+      }
     }
   }
 }
