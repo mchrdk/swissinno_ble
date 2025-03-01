@@ -32,7 +32,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
             battery_sensor = SwissinnoBatterySensor(address, trap_id, battery_v)
 
             sensors[trap_id] = {"rssi": rssi_sensor, "battery": battery_sensor}
-            hass.async_create_task(async_add_entities([rssi_sensor, battery_sensor], update_before_add=True))
+            async_add_entities([rssi_sensor, battery_sensor])  # ✅ FIXED!
 
     hass.data[DOMAIN]["update_sensors"] = add_or_update_sensors
     _LOGGER.info("SWISSINNO BLE: `update_sensors` function registered successfully.")
