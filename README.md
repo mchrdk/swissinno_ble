@@ -1,6 +1,6 @@
 # 🐀 SWISSINNO BLE Trap Integration for Home Assistant
 
-A **custom Home Assistant integration** for **SWISSINNO Bluetooth traps**, allowing real-time monitoring of **trap status, battery levels, and signal strength (RSSI).**  
+A **custom Home Assistant integration** for **SWISSINNO Connect SuperCat**, allowing real-time monitoring of **trap status, battery levels, and signal strength (RSSI).**  
 
 ![image](https://github.com/user-attachments/assets/99f7ad4c-0344-4547-89e7-5c4329c465a4)
  
