@@ -7,6 +7,7 @@
   "codeowners": ["@unigas"],
   "requirements": [],
   "iot_class": "local_push",
+  "config_flow": true,
   "bluetooth": [
     {
       "manufacturer_id": 3003
